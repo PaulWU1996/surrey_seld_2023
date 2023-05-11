@@ -21,6 +21,6 @@ class FeatureExtraction(nn.Module):
 
         self.conv_mel
 
-    def forward(self, audio_features):
+    # def forward(self, audio_features):
         
-        batch_size, 
+    #     batch_size, 
