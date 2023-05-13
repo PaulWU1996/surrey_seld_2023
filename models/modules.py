@@ -78,15 +78,3 @@ class FeatureExtraction(nn.Module):
 
         return embeddings
 
-import  data_module
-
-data = data_module.T3DataModule(batch_size=1)
-data.setup()
-dataloader = data.train_dataloader()
-
-samples = next(iter(dataloader))
-feats, labels = samples
-
-model = FeatureExtraction()
-output = model(feats)
-print(output.shape)
