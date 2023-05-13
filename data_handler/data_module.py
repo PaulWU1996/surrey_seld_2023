@@ -123,7 +123,7 @@ from torch.utils.data import DataLoader
 
 class T3DataModule(pl.LightningDataModule):
     def __init__(self,
-                 data_path: str = "/mnt/fast/nobackup/scratch4weeks/pw00391/DCASE2023_SELD_dataset/surrey_seld_feat_label/",
+                 data_path: str = "/vol/research/VS-Work/PW00391/surrey_seld_feat_label/",
                  batch_size: int = 128) -> None:
         super().__init__()
         self.data_path = data_path
@@ -163,13 +163,4 @@ class T3DataModule(pl.LightningDataModule):
         return DataLoader(self.test_set,
                           batch_size=self.batch_size,
                           num_workers=12)
-    
-
-# data_module = T3DataModule()
-# data_module.setup()
-# # data_module.train_set.__len__()
-
-# dataloader = data_module.train_dataloader()
-
-# samples = next(iter(dataloader))
-# feats, labels = samples
+                          

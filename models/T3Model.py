@@ -42,6 +42,6 @@ class T3Model(pl.LightningModule):
         embeddings = self.feature_extraction(audio_features)
 
         for src_dix in range(self.num_sources_output):
-            src_embeddiings = self.transformer
+            src_embeddiings = self.transformer(embeddings[:, 1, ...].permute(1,0,2)).permute(1,0,2) 
 
         return 0

@@ -11,10 +11,10 @@ samples = next(iter(dataloader))
 feats, labels = samples
 
 model = FeatureExtraction()
-output = model(feats)
-print(output.shape)
+embeddings, observation_noise = model(feats)
+print(embeddings.shape)
 
-transformer_layers = nn.TransformerEncoderLayer(51,8,1024,0.1)
+transformer_layers = nn.TransformerEncoderLayer(32,8,1024,0.1)
 transformer = nn.TransformerEncoder(transformer_layers,3)
 
 print(1)
