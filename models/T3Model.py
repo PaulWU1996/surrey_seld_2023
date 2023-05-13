@@ -18,6 +18,7 @@ class T3Model(pl.LightningModule):
                  transformer_num_layers: int = 3,
                  transformer_feedforward_dim: int = 1024,
                  transformer_dropout: float = 0.1,
+                 dropout_rate: float = 0.0,
                  learning_rate: float = 0.05,
                  num_epochs_warmup: int = 5,
                  ) -> None:
@@ -36,12 +37,23 @@ class T3Model(pl.LightningModule):
         )
         self.transformer = nn.TransformerEncoder(transformer_layers, transformer_num_layers)
 
+        self.classifier = nn.Sequential(
+            nn.Linear(50*32,128),
+            nn.ReLU(),
+            nn.Dropout(p=dropout_rate),
+            nn.Linear(128,84),
+            nn.ReLU(),
+            nn.Dropout(p=dropout_rate),
+            nn.Linear(84,13),
+            nn.ReLU(),
+            nn.Dropout(p=dropout_rate),
+        )
         self.linear_gaussian_system = LinearGaussianSystem(state_dim=3, observation_dim=embedding_dim)
-        self.prior_mean = torch.cat((
-            torch.linspace(-math.pi, math.pi - 2 * math.pi / num_sources_output, num_sources_output).unsqueeze(-1),
-            torch.zeros(num_sources_output).unsqueeze(-1)
-        ), dim=-1)
-        self.prior_covariance = torch.eye(2).unsqueeze(0).repeat((num_sources_output, 1, 1))
+        # self.prior_mean = torch.cat((
+        #     torch.linspace(-math.pi, math.pi - 2 * math.pi / num_sources_output, num_sources_output).unsqueeze(-1),
+        #     torch.zeros(num_sources_output).unsqueeze(-1)
+        # ), dim=-1) # maybe paste once more if we wanna
+        # self.prior_covariance = torch.eye(3).unsqueeze(0).repeat((num_sources_output, 1, 1)) # eye(2)->eye(3)
 
 
 
@@ -51,6 +63,7 @@ class T3Model(pl.LightningModule):
         """
         embeddings, observation_noise = self.feature_extraction(audio_features)
 
+        target_cls = []
         posterior_mean = []
         posterior_covariance = []
 
@@ -60,17 +73,25 @@ class T3Model(pl.LightningModule):
         for src_idx in range(self.num_sources_output):
             # Permutation is needed here, because the Transformer class requires sequence length in dimension zero.
             src_embeddings = self.transformer(embeddings[:, src_idx, ...].permute(1, 0, 2)).permute(1, 0, 2)
+            
+            # Detection
+            cls_prediction = self.classifier(src_embeddings.flatten(1))
+            target_cls.append(cls_prediction)
+
+            # Localization
             src_observation_noise_covariance = torch.diag_embed(observation_noise[:, src_idx, ...])
 
             posterior_distribution = self.linear_gaussian_system(src_embeddings,
                                                                  src_observation_noise_covariance,
-                                                                 prior_mean=self.prior_mean[src_idx, ...].to(self.device),
-                                                                 prior_covariance=self.prior_covariance[src_idx, ...].to(self.device))
+                                                                #  prior_mean=self.prior_mean[src_idx, ...].to(self.device),
+                                                                #  prior_covariance=self.prior_covariance[src_idx, ...].to(self.device)
+                                                                )
 
             posterior_mean.append(posterior_distribution[0])
             posterior_covariance.append(posterior_distribution[1].unsqueeze(-1))
 
         posterior_mean = torch.cat(posterior_mean, dim=-1).permute(0, 3, 1, 2)
         posterior_covariance = torch.cat(posterior_covariance, dim=-1).permute(0, 4, 1, 2, 3)
+        target_cls = torch.cat(target_cls,dim=1).view(-1,3,13)
 
-        return posterior_mean, posterior_covariance
+        return target_cls, posterior_mean, posterior_covariance
