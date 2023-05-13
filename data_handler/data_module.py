@@ -103,15 +103,20 @@ class T3Dataset(Dataset):
 
         # return SED.astype(np.float32), DOA.astype(np.float32)
 
-        cls_id = []
-        loc = []
+        cls_id = np.zeros((3,1))
+        loc = np.zeros((3,3))
 
         idx = 0
+        t_id = 0
         for i in range(len(SED)):
-            if i == 1:
+            if SED[i] == 1:
                 xyz = [DOA[0,idx],DOA[1,idx],DOA[2,idx]]
-                cls_id.append(idx)
-                loc.append(xyz)
+                cls_id[t_id] = i
+                loc[t_id,:] = xyz
+                t_id += 1
+
+                # cls_id.append(idx)
+                # loc.append(xyz)
             idx += 1
 
         cls_id = np.array(cls_id).astype(np.float32)
