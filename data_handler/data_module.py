@@ -100,7 +100,22 @@ class T3Dataset(Dataset):
         label = np.load(label_file)[chunk_idx,:]
         SED = label[0:13]
         DOA = label[13:].reshape(3,13)
-        return SED.astype(np.float32), DOA.astype(np.float32)
+
+        # return SED.astype(np.float32), DOA.astype(np.float32)
+
+        cls_id = []
+        loc = []
+
+        idx = 0
+        for i in range(len(SED)):
+            if i == 1:
+                xyz = [DOA[0,idx],DOA[1,idx],DOA[2,idx]]
+                cls_id.append(idx)
+                loc.append(xyz)
+            idx += 1
+
+        return cls_id.astype(np.float32), loc.astype(np.float32)
+        
 
     def __len__(self) -> int:
         return len(self.chunks)
@@ -163,4 +178,3 @@ class T3DataModule(pl.LightningDataModule):
         return DataLoader(self.test_set,
                           batch_size=self.batch_size,
                           num_workers=12)
-                          
