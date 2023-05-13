@@ -95,3 +95,6 @@ class T3Model(pl.LightningModule):
         target_cls = torch.cat(target_cls,dim=1).view(-1,3,13)
 
         return target_cls, posterior_mean, posterior_covariance
+
+    # def training_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
+    #     return super().training_step(*args, **kwargs)

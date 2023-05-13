@@ -3,7 +3,7 @@ from models import T3Model
 
 import torch.nn as nn
 
-data = data_module.T3DataModule(batch_size=2)
+data = data_module.T3DataModule(batch_size=1)
 data.setup()
 dataloader = data.train_dataloader()
 

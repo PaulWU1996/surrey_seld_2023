@@ -114,7 +114,10 @@ class T3Dataset(Dataset):
                 loc.append(xyz)
             idx += 1
 
-        return cls_id.astype(np.float32), loc.astype(np.float32)
+        cls_id = np.array(cls_id).astype(np.float32)
+        loc = np.array(loc).astype(np.float32)
+        
+        return cls_id, loc
         
 
     def __len__(self) -> int:
