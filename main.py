@@ -1,5 +1,5 @@
 from data_handler import data_module
-from models import FeatureExtraction
+from models import T3Model
 
 import torch.nn as nn
 
@@ -10,11 +10,14 @@ dataloader = data.train_dataloader()
 samples = next(iter(dataloader))
 feats, labels = samples
 
-model = FeatureExtraction()
-embeddings, observation_noise = model(feats)
-print(embeddings.shape)
+# model = FeatureExtraction()
+# embeddings, observation_noise = model(feats)
+# print(embeddings.shape)
 
-transformer_layers = nn.TransformerEncoderLayer(32,8,1024,0.1)
-transformer = nn.TransformerEncoder(transformer_layers,3)
+# transformer_layers = nn.TransformerEncoderLayer(32,8,1024,0.1)
+# transformer = nn.TransformerEncoder(transformer_layers,3)
+
+model = T3Model()
+doa,noise = model(feats)
 
 print(1)

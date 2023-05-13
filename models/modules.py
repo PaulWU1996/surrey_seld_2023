@@ -90,8 +90,7 @@ class LinearGaussianSystem(nn.Module):
                  observation_dim: int,
                  prior_mean: Tensor = None,
                  prior_covariance: Tensor = None) -> None:
-        """Linear Gaussian system, as described in Sec. 3.3 in the paper.
-
+        """ PILOT Original Linear Gaussian System
         Args:
             state_dim (int): State dimension.
             observation_dim (int): Observation dimension.
