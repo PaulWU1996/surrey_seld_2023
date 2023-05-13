@@ -152,7 +152,7 @@ class T3DataModule(pl.LightningDataModule):
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(self.train_set,
                           batch_size=self.batch_size,
-                          num_workers=12)
+                          num_workers=1)
     
     def val_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(self.val_set,
@@ -167,4 +167,9 @@ class T3DataModule(pl.LightningDataModule):
 
 # data_module = T3DataModule()
 # data_module.setup()
-# data_module.train_set.__len__()
+# # data_module.train_set.__len__()
+
+# dataloader = data_module.train_dataloader()
+
+# samples = next(iter(dataloader))
+# feats, labels = samples
