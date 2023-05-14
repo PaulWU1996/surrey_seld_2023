@@ -103,7 +103,7 @@ class T3Dataset(Dataset):
 
         # return SED.astype(np.float32), DOA.astype(np.float32)
 
-        cls_id = np.zeros((3,1))
+        cls_id = np.zeros((3,13))
         loc = np.zeros((3,3))
 
         idx = 0
@@ -111,7 +111,7 @@ class T3Dataset(Dataset):
         for i in range(len(SED)):
             if SED[i] == 1:
                 xyz = [DOA[0,idx],DOA[1,idx],DOA[2,idx]]
-                cls_id[t_id] = i
+                cls_id[t_id,i] = 1
                 loc[t_id,:] = xyz
                 t_id += 1
 
