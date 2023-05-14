@@ -95,6 +95,46 @@ class T3Model(pl.LightningModule):
         target_cls = torch.cat(target_cls,dim=1).view(-1,3,13)
 
         return target_cls, posterior_mean, posterior_covariance
+    
+    def training_step(self, batch:Tuple[Tensor, Tuple[Tensor,Tensor]],batch_idx:int)->Tensor:
+
+        audio_features, targets = batch
+        predictions = self(audio_features)
+
+        loss = psel_loss(predictions,targets)
+
+        self.log('train_loss', loss)
+
+        return loss
+
+    def validation_step(self, batch: Tuple[Tensor, Tuple[Tensor, Tensor]], batch_idx: int) -> Tensor:
+
+        audio_features, targets = batch
+        predictions = self(audio_features)
+
+        source_activity, posterior_mean, posterior_covariance = predictions
+        source_activity_target, direction_of_arrival_target = targets
+        loss = psel_loss(predictions, targets)
+        self.log('val_loss', loss)
+        self.val_frame_recall(source_activity, source_activity_target)
+        self.val_doa_error(source_activity, posterior_mean, source_activity_target, direction_of_arrival_target)
+
+        return loss
+
+    def validation_epoch_end(self, outputs: List[Any]) -> None:
+
+        self.log('val_frame_recall', self.val_frame_recall.compute(), prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_doa_error', self.val_doa_error.compute(), prog_bar=True, on_step=False, on_epoch=True)
+
+    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler._LRScheduler]]:
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+
+        lr_lambda = lambda epoch: self.learning_rate * np.minimum(
+            (epoch + 1) ** -0.5, (epoch + 1) * (self.num_epochs_warmup ** -1.5)
+        )
+        scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+        return [optimizer], [scheduler]
 
     # def training_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
     #     return super().training_step(*args, **kwargs)
