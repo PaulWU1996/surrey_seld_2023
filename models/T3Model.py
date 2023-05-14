@@ -44,16 +44,14 @@ class T3Model(pl.LightningModule):
             nn.Linear(128,84),
             nn.ReLU(),
             nn.Dropout(p=dropout_rate),
-            nn.Linear(84,13),
-            nn.ReLU(),
-            nn.Dropout(p=dropout_rate),
+            nn.Linear(84,13)
         )
-        self.linear_gaussian_system = LinearGaussianSystem(state_dim=3, observation_dim=embedding_dim)
-        # self.prior_mean = torch.cat((
-        #     torch.linspace(-math.pi, math.pi - 2 * math.pi / num_sources_output, num_sources_output).unsqueeze(-1),
-        #     torch.zeros(num_sources_output).unsqueeze(-1)
-        # ), dim=-1) # maybe paste once more if we wanna
-        # self.prior_covariance = torch.eye(3).unsqueeze(0).repeat((num_sources_output, 1, 1)) # eye(2)->eye(3)
+        self.linear_gaussian_system = LinearGaussianSystem(state_dim=2, observation_dim=embedding_dim)
+        self.prior_mean = torch.cat((
+            torch.linspace(-math.pi, math.pi - 2 * math.pi / num_sources_output, num_sources_output).unsqueeze(-1),
+            torch.zeros(num_sources_output).unsqueeze(-1)
+        ), dim=-1) # maybe paste once more if we wanna
+        self.prior_covariance = torch.eye(2).unsqueeze(0).repeat((num_sources_output, 1, 1)) # eye(2)->eye(3)
 
 
 
@@ -83,8 +81,8 @@ class T3Model(pl.LightningModule):
 
             posterior_distribution = self.linear_gaussian_system(src_embeddings,
                                                                  src_observation_noise_covariance,
-                                                                #  prior_mean=self.prior_mean[src_idx, ...].to(self.device),
-                                                                #  prior_covariance=self.prior_covariance[src_idx, ...].to(self.device)
+                                                                 prior_mean=self.prior_mean[src_idx, ...].to(self.device),
+                                                                 prior_covariance=self.prior_covariance[src_idx, ...].to(self.device)
                                                                 )
 
             posterior_mean.append(posterior_distribution[0])
@@ -96,45 +94,45 @@ class T3Model(pl.LightningModule):
 
         return target_cls, posterior_mean, posterior_covariance
     
-    def training_step(self, batch:Tuple[Tensor, Tuple[Tensor,Tensor]],batch_idx:int)->Tensor:
+    # def training_step(self, batch:Tuple[Tensor, Tuple[Tensor,Tensor]],batch_idx:int)->Tensor:
 
-        audio_features, targets = batch
-        predictions = self(audio_features)
+    #     audio_features, targets = batch
+    #     predictions = self(audio_features)
 
-        loss = psel_loss(predictions,targets)
+    #     loss = psel_loss(predictions,targets)
 
-        self.log('train_loss', loss)
+    #     self.log('train_loss', loss)
 
-        return loss
+    #     return loss
 
-    def validation_step(self, batch: Tuple[Tensor, Tuple[Tensor, Tensor]], batch_idx: int) -> Tensor:
+    # def validation_step(self, batch: Tuple[Tensor, Tuple[Tensor, Tensor]], batch_idx: int) -> Tensor:
 
-        audio_features, targets = batch
-        predictions = self(audio_features)
+    #     audio_features, targets = batch
+    #     predictions = self(audio_features)
 
-        source_activity, posterior_mean, posterior_covariance = predictions
-        source_activity_target, direction_of_arrival_target = targets
-        loss = psel_loss(predictions, targets)
-        self.log('val_loss', loss)
-        self.val_frame_recall(source_activity, source_activity_target)
-        self.val_doa_error(source_activity, posterior_mean, source_activity_target, direction_of_arrival_target)
+    #     source_activity, posterior_mean, posterior_covariance = predictions
+    #     source_activity_target, direction_of_arrival_target = targets
+    #     loss = psel_loss(predictions, targets)
+    #     self.log('val_loss', loss)
+    #     self.val_frame_recall(source_activity, source_activity_target)
+    #     self.val_doa_error(source_activity, posterior_mean, source_activity_target, direction_of_arrival_target)
 
-        return loss
+    #     return loss
 
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
+    # def validation_epoch_end(self, outputs: List[Any]) -> None:
 
-        self.log('val_frame_recall', self.val_frame_recall.compute(), prog_bar=True, on_step=False, on_epoch=True)
-        self.log('val_doa_error', self.val_doa_error.compute(), prog_bar=True, on_step=False, on_epoch=True)
+    #     self.log('val_frame_recall', self.val_frame_recall.compute(), prog_bar=True, on_step=False, on_epoch=True)
+    #     self.log('val_doa_error', self.val_doa_error.compute(), prog_bar=True, on_step=False, on_epoch=True)
 
-    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler._LRScheduler]]:
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+    # def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler._LRScheduler]]:
+    #     optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
 
-        lr_lambda = lambda epoch: self.learning_rate * np.minimum(
-            (epoch + 1) ** -0.5, (epoch + 1) * (self.num_epochs_warmup ** -1.5)
-        )
-        scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
+    #     lr_lambda = lambda epoch: self.learning_rate * np.minimum(
+    #         (epoch + 1) ** -0.5, (epoch + 1) * (self.num_epochs_warmup ** -1.5)
+    #     )
+    #     scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
 
-        return [optimizer], [scheduler]
+    #     return [optimizer], [scheduler]
 
     # def training_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
     #     return super().training_step(*args, **kwargs)

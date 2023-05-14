@@ -15,4 +15,6 @@ feats, labels = samples
 model = T3Model()
 target_cls,doa,noise = model(feats)
 
+from utls import compute_spherical_distance
+
 print(1)

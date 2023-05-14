@@ -4,21 +4,23 @@ from torch import Tensor
 import torch.nn.functional as F
 from typing import Tuple
 
-def compute_spherical_distamce_3D(y_pred: Tensor, y_true: Tensor, radius=1.0) -> Tensor:
-    """
-        Computes the distance between two points (given as angles) on a sphere in 3D.
+# def compute_spherical_distamce_3D(y_pred: Tensor, y_true: Tensor, radius=1.0) -> Tensor:
+#     """
+#         Computes the distance between two points (given as angles) on a sphere in 3D.
         
-        Args:
-            y_pred: shape(N,3)
-            y_true: shape(N,3)
-            radius (float) = 1.0
-    """
+#         Args:
+#             y_pred: shape(N,3)
+#             y_true: shape(N,3)
+#             radius (float) = 1.0
+#     """
 
-    dot_product = torch.sum(y_pred * y_true, dim=1)
-    dot_product = torch.clamp(dot_product, -1.0, 1.0)
-    angle = torch.acos(dot_product)
-    s_distance = radius * angle
-    return s_distance
+    
+
+    # dot_product = torch.sum(y_pred * y_true, dim=1)
+    # dot_product = torch.clamp(dot_product, -1.0, 1.0)
+    # angle = torch.acos(dot_product)
+    # s_distance = radius * angle
+    # return s_distance
 
 
 def compute_spherical_distance(y_pred: Tensor, y_true: Tensor) -> Tensor:
@@ -55,6 +57,34 @@ def compute_kld_to_standard_norm(covariance_matrix: Tensor) -> Tensor:
     covariance_trace = torch.diagonal(covariance_matrix, dim1=-2, dim2=-1).sum(-1)
 
     return 0.5 * (covariance_trace - matrix_dim - torch.logdet(covariance_matrix.contiguous()))
+
+
+def sedl_loss(predictions: Tuple[Tensor, Tensor, Tensor],
+              targets: Tuple[Tensor, Tensor],
+              alpha: float = 1.,
+              beta: float = 1.) -> Tensor:        
+    """ Returns the sound event detection and localization loss
+    
+    Args:
+        predictions (tuple): Predicted source activity, direction-of-arrival and posterior covariance matrix.
+        targets (Tensor): Ground-truth source activity and direction-of-arrival.
+        alpha (float): Weighting factor for direction-of-arrival loss component.
+        beta (float): Weighting factor for KLD loss component.
+
+    Returns:
+        Tensor: Scalar probabilistic SEL loss value.
+    """
+
+    source_cls_pred, post_mean, post_cov = predictions
+    source_cls_true, direction_of_arrival = targets
+
+    # detection loss
+    source_cls_loss = F.binary_cross_entropy_with_logits(source_cls_pred, source_cls_true)
+
+    # doa loss
+    # spherical_distance = compute_spherical_distamce()
+
+
 
 
 def psel_loss(predictions: Tuple[Tensor, Tensor, Tensor],
