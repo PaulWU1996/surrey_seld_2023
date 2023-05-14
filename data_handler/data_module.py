@@ -105,6 +105,7 @@ class T3Dataset(Dataset):
 
         cls_id = np.zeros((3,13))
         loc = np.zeros((3,2))
+        # mask = [False,False,False]
 
         idx = 0
         t_id = 0
@@ -113,6 +114,7 @@ class T3Dataset(Dataset):
                 xy = [DOA[0,idx],DOA[1,idx]] #,DOA[2,idx]]
                 cls_id[t_id,i] = 1
                 loc[t_id,:] = xy
+                # mask[t_id] = True
                 t_id += 1
 
                 # cls_id.append(idx)
