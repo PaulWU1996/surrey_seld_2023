@@ -1,2 +1,2 @@
-from .losses import compute_spherical_distance
+from .losses import sedl_loss
 from .metrics import FrameRecall

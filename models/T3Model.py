@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 import numpy as np
 import torch
 import pytorch_lightning as pl
@@ -7,12 +7,13 @@ import torch.nn as nn
 import math
 
 from .modules import FeatureExtraction, LinearGaussianSystem
-
+from utls import sedl_loss
+from torch.optim.lr_scheduler import LambdaLR
 
 class T3Model(pl.LightningModule):
     def __init__(self,
                  embedding_dim: int = 32,
-                 num_sources_output: int = 3,
+                 num_sources_output: int = 5,
                  feature_extraction_dropout: float = 0.0,
                  transformer_num_heads: int = 8,
                  transformer_num_layers: int = 3,
@@ -24,6 +25,9 @@ class T3Model(pl.LightningModule):
                  ) -> None:
         # add the args later
         super(T3Model, self).__init__()
+
+        self.learning_rate = learning_rate
+        self.num_epochs_warmup = num_epochs_warmup
 
         self.num_sources_output = num_sources_output
         self.embedding_dim = embedding_dim
@@ -51,7 +55,7 @@ class T3Model(pl.LightningModule):
             torch.linspace(-math.pi, math.pi - 2 * math.pi / num_sources_output, num_sources_output).unsqueeze(-1),
             torch.zeros(num_sources_output).unsqueeze(-1)
         ), dim=-1) # maybe paste once more if we wanna
-        self.prior_covariance = torch.eye(2).unsqueeze(0).repeat((num_sources_output, 1, 1)) # eye(2)->eye(3)
+        self.prior_covariance = torch.eye(2).unsqueeze(0).repeat((num_sources_output, 1, 1)) 
 
 
 
@@ -90,49 +94,46 @@ class T3Model(pl.LightningModule):
 
         posterior_mean = torch.cat(posterior_mean, dim=-1).permute(0, 3, 1, 2)
         posterior_covariance = torch.cat(posterior_covariance, dim=-1).permute(0, 4, 1, 2, 3)
-        target_cls = torch.cat(target_cls,dim=1).view(-1,3,13)
+        target_cls = torch.cat(target_cls,dim=1).view(-1,5,13)
 
         return target_cls, posterior_mean, posterior_covariance
     
-    # def training_step(self, batch:Tuple[Tensor, Tuple[Tensor,Tensor]],batch_idx:int)->Tensor:
+    def training_step(self, batch:Tuple[Tensor, Tuple[Tensor,Tensor]],batch_idx:int)->Tensor:
 
-    #     audio_features, targets = batch
-    #     predictions = self(audio_features)
+        audio_features, targets = batch
+        predictions = self(audio_features)
 
-    #     loss = psel_loss(predictions,targets)
+        loss = sedl_loss(predictions,targets)
 
-    #     self.log('train_loss', loss)
+        self.log('train_loss', loss)
 
-    #     return loss
+        return loss
 
-    # def validation_step(self, batch: Tuple[Tensor, Tuple[Tensor, Tensor]], batch_idx: int) -> Tensor:
+    def validation_step(self, batch: Tuple[Tensor, Tuple[Tensor, Tensor]], batch_idx: int) -> Tensor:
 
-    #     audio_features, targets = batch
-    #     predictions = self(audio_features)
+        audio_features, targets = batch
+        predictions = self(audio_features)
 
-    #     source_activity, posterior_mean, posterior_covariance = predictions
-    #     source_activity_target, direction_of_arrival_target = targets
-    #     loss = psel_loss(predictions, targets)
-    #     self.log('val_loss', loss)
-    #     self.val_frame_recall(source_activity, source_activity_target)
-    #     self.val_doa_error(source_activity, posterior_mean, source_activity_target, direction_of_arrival_target)
+        source_activity, posterior_mean, posterior_covariance = predictions
+        source_activity_target, direction_of_arrival_target = targets
+        loss = sedl_loss(predictions, targets)
+        self.log('val_loss', loss)
+        # self.val_frame_recall(source_activity, source_activity_target)
+        # self.val_doa_error(source_activity, posterior_mean, source_activity_target, direction_of_arrival_target)
 
-    #     return loss
+        return loss
 
-    # def validation_epoch_end(self, outputs: List[Any]) -> None:
+    def validation_epoch_end(self, outputs: List[Any]) -> None:
+        pass
+        # self.log('val_frame_recall', self.val_frame_recall.compute(), prog_bar=True, on_step=False, on_epoch=True)
+        # self.log('val_doa_error', self.val_doa_error.compute(), prog_bar=True, on_step=False, on_epoch=True)
 
-    #     self.log('val_frame_recall', self.val_frame_recall.compute(), prog_bar=True, on_step=False, on_epoch=True)
-    #     self.log('val_doa_error', self.val_doa_error.compute(), prog_bar=True, on_step=False, on_epoch=True)
+    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler._LRScheduler]]:
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
 
-    # def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler._LRScheduler]]:
-    #     optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+        lr_lambda = lambda epoch: self.learning_rate * np.minimum(
+            (epoch + 1) ** -0.5, (epoch + 1) * (self.num_epochs_warmup ** -1.5)
+        )
+        scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
 
-    #     lr_lambda = lambda epoch: self.learning_rate * np.minimum(
-    #         (epoch + 1) ** -0.5, (epoch + 1) * (self.num_epochs_warmup ** -1.5)
-    #     )
-    #     scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
-
-    #     return [optimizer], [scheduler]
-
-    # def training_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
-    #     return super().training_step(*args, **kwargs)
+        return [optimizer], [scheduler]

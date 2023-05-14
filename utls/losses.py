@@ -90,7 +90,10 @@ def sedl_loss(predictions: Tuple[Tensor, Tensor, Tensor],
     kld_loss = compute_kld_to_standard_norm(post_cov)
     kld_loss = torch.mean(kld_loss)
 
-    return source_cls_loss + alpha * doa_loss + beta * kld_loss
+    final_loss = source_cls_loss + alpha * doa_loss + beta * kld_loss
+
+    # final_loss = torch.clamp(final_loss,min=0,max=100)
+    return final_loss
 
 
 

@@ -103,8 +103,8 @@ class T3Dataset(Dataset):
 
         # return SED.astype(np.float32), DOA.astype(np.float32)
 
-        cls_id = np.zeros((3,13))
-        loc = np.zeros((3,2))
+        cls_id = np.zeros((5,13))
+        loc = np.zeros((5,2))
         # mask = [False,False,False]
 
         idx = 0
