@@ -78,13 +78,14 @@ def sedl_loss(predictions: Tuple[Tensor, Tensor, Tensor],
     source_cls_pred, post_mean, post_cov = predictions
     source_cls_true, direction_of_arrival = targets
 
-    source_masks = source_cls_true.max(dim=2).values.max(dim=1).values.bool()
+    source_masks = source_cls_true.max(dim=2).values.bool()
 
     # detection loss
     source_cls_loss = F.binary_cross_entropy_with_logits(source_cls_pred, source_cls_true)
 
     # doa loss
     spherical_distance = compute_spherical_distance(post_mean.mean(dim=2)[source_masks],direction_of_arrival[source_masks])
+    spherical_distance_update = torch.where(torch.isnan(spherical_distance),0.0,spherical_distance)
     doa_loss = torch.mean(spherical_distance)
 
     kld_loss = compute_kld_to_standard_norm(post_cov)
