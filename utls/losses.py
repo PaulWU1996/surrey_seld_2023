@@ -4,6 +4,22 @@ from torch import Tensor
 import torch.nn.functional as F
 from typing import Tuple
 
+def compute_spherical_distamce_3D(y_pred: Tensor, y_true: Tensor, radius=1.0) -> Tensor:
+    """
+        Computes the distance between two points (given as angles) on a sphere in 3D.
+        
+        Args:
+            y_pred: shape(N,3)
+            y_true: shape(N,3)
+            radius (float) = 1.0
+    """
+
+    dot_product = torch.sum(y_pred * y_true, dim=1)
+    dot_product = torch.clamp(dot_product, -1.0, 1.0)
+    angle = torch.acos(dot_product)
+    s_distance = radius * angle
+    return s_distance
+
 
 def compute_spherical_distance(y_pred: Tensor, y_true: Tensor) -> Tensor:
     """Computes the distance between two points (given as angles) on a sphere, as described in Eq. (6) in the paper.
@@ -15,7 +31,7 @@ def compute_spherical_distance(y_pred: Tensor, y_true: Tensor) -> Tensor:
     Returns:
         Tensor: Tensor of spherical distances.
     """
-    if (y_pred.shape[-1] != 2) or (y_true.shape[-1] != 2):
+    if (y_pred.shape[-1] != 2) or (y_true.shape[-1] != 2): # we need change to dim 3
         assert RuntimeError('Input tensors require a dimension of two.')
 
     sine_term = torch.sin(y_pred[:, 0]) * torch.sin(y_true[:, 0])
