@@ -32,12 +32,21 @@ warnings.filterwarnings("ignore")
 
 if __name__ == "__main__":
     model = T3Model()
+<<<<<<< HEAD
     data = data_module.T3DataModule(batch_size=5)
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
 
     trainer = pl.Trainer(
         default_root_dir='/vol/research/VS-Work/PW00391/surrey_seld_2023/',
         min_epochs=0,
+=======
+    data = data_module.T3DataModule(batch_size=256)
+    checkpoint_callback = ModelCheckpoint(monitor="val_loss")
+
+    trainer = pl.Trainer(
+        default_root_dir='/mnt/fast/nobackup/users/pw00391/',
+        min_epochs=None,
+>>>>>>> 560f9b2614782dc2dab0ab57df81e063179c40ce
         max_epochs=200,
         accelerator="auto",
         enable_checkpointing=True,

@@ -148,8 +148,8 @@ from torch.utils.data import DataLoader
 
 class T3DataModule(pl.LightningDataModule):
     def __init__(self,
-                 data_path: str = "/vol/research/VS-Work/PW00391/surrey_seld_feat_label/",
-                 batch_size: int = 128) -> None:
+                 data_path: str = "/mnt/fast/nobackup/scratch4weeks/pw00391/DCASE2023_SELD_dataset/surrey_seld_feat_label/",
+                 batch_size: int = 256) -> None:
         super().__init__()
         self.data_path = data_path
         self.batch_size = batch_size
