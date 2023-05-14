@@ -1,0 +1,11 @@
+# Ignore compiled Python files
+*.pyc
+
+# Ignore the "build" directory
+/lightning_logs/
+
+# Ignore files with sensitive information
+# secrets.txt
+
+# Ignore log files
+# *.log
