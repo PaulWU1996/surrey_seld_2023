@@ -1,20 +1,47 @@
-from data_handler import data_module
+# from data_handler import data_module
+# from models import T3Model
+
+# import torch.nn as nn
+
+# data = data_module.T3DataModule(batch_size=1)
+# data.setup()
+# dataloader = data.train_dataloader()
+
+# samples = next(iter(dataloader)) 
+# feats, labels = samples
+
+# # feats, labels = data.train_set.__getitem__(150)
+
+# model = T3Model()
+# target_cls,doa,noise = model(feats)
+
+# from utls import sedl_loss
+
+# print(sedl_loss((target_cls,doa,noise),labels))
+
+
 from models import T3Model
+from data_handler import data_module
 
-import torch.nn as nn
+import pytorch_lightning as pl
 
-data = data_module.T3DataModule(batch_size=1)
-data.setup()
-dataloader = data.train_dataloader()
+from pytorch_lightning.callbacks import ModelCheckpoint
 
-samples = next(iter(dataloader)) 
-feats, labels = samples
+import warnings
+warnings.filterwarnings("ignore")
 
-# feats, labels = data.train_set.__getitem__(150)
+if __name__ == "__main__":
+    model = T3Model()
+    data = data_module.T3DataModule(batch_size=128)
+    checkpoint_callback = ModelCheckpoint(monitor="val_loss")
 
-model = T3Model()
-target_cls,doa,noise = model(feats)
-
-from utls import compute_spherical_distance
-
-print(1)
+    trainer = pl.Trainer(
+        default_root_dir='/vol/research/VS-Work/PW00391/surrey_seld_2023/',
+        min_epochs=None,
+        max_epochs=200,
+        accelerator="auto",
+        enable_checkpointing=True,
+        fast_dev_run=True
+    )
+    trainer.tune(model=model,datamodule=data)
+    trainer.fit(model=model,datamodule=data)
