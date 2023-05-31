@@ -31,22 +31,56 @@ import warnings
 warnings.filterwarnings("ignore")
 import torch
 
-if __name__ == "__main__":
+import torch.nn as nn
 
-    torch.set_float32_matmul_precision("medium")
+import numpy as np
+from models import ConvNetwork
 
-    model = T3Model()
-    data = data_module.T3DataModule(batch_size=256)
-    checkpoint_callback = ModelCheckpoint(monitor="val_loss")
+data = np.load('/mnt/fast/nobackup/users/pw00391/dcase/audio.npy').astype(np.float32)
+data = data.reshape(1,7,160,256)
+data = torch.from_numpy(data)
 
-    trainer = pl.Trainer(
-        default_root_dir='/mnt/fast/nobackup/users/pw00391/',
-        min_epochs=0,
-        max_epochs=200,
-        accelerator="auto",
-        enable_checkpointing=True,
-        # fast_dev_run=True
-    )
+ConvNetwork = ConvNetwork().float()
+ConvNetwork(data)
 
-    trainer.tune(model=model,datamodule=data)
-    trainer.fit(model=model,datamodule=data)
+# class ClassificationNet(nn.Module):
+#     def __init__(self):
+#         super(ClassificationNet, self).__init__()
+#         self.flatten = nn.Flatten()
+#         self.fc1 = nn.Linear(50 * 32, 256)
+#         self.fc2 = nn.Linear(256, 128)
+#         self.fc3 = nn.Linear(128, 13)
+#         self.relu = nn.ReLU()
+    
+#     def forward(self, x):
+#         x = self.flatten(x)
+#         x = self.fc1(x)
+#         x = self.relu(x)
+#         x = self.fc2(x)
+#         x = self.relu(x)
+#         x = self.fc3(x)
+#         return x
+
+# if __name__ == "__main__":
+
+#     torch.set_float32_matmul_precision("medium")
+
+#     model = T3Model().load_from_checkpoint("/mnt/fast/nobackup/users/pw00391/dcase/512.ckpt")
+
+#     new_classifier = ClassificationNet()
+#     model.classifier = new_classifier
+
+#     data = data_module.T3DataModule(batch_size=512)
+#     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
+
+#     trainer = pl.Trainer(
+#         default_root_dir='/mnt/fast/nobackup/users/pw00391/dcase',
+#         min_epochs=0,
+#         max_epochs=200,
+#         accelerator="auto",
+#         enable_checkpointing=True,
+#         # fast_dev_run=True
+#     )
+
+#     trainer.tune(model=model,datamodule=data)
+#     trainer.fit(model=model,datamodule=data)

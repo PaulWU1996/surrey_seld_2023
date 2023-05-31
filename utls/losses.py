@@ -3,6 +3,7 @@ import torch
 from torch import Tensor
 import torch.nn.functional as F
 from typing import Tuple
+import numpy as np
 
 # def compute_spherical_distamce_3D(y_pred: Tensor, y_true: Tensor, radius=1.0) -> Tensor:
 #     """
@@ -85,7 +86,8 @@ def sedl_loss(predictions: Tuple[Tensor, Tensor, Tensor],
 
     # doa loss
     spherical_distance = compute_spherical_distance(post_mean.mean(dim=2)[source_masks],direction_of_arrival[source_masks])
-    spherical_distance_update = torch.where(torch.isnan(spherical_distance),0.0,spherical_distance)
+    if spherical_distance.numel()==0:
+        spherical_distance = torch.from_numpy(np.array(2.6).astype(np.float32))
     doa_loss = torch.mean(spherical_distance)
 
     kld_loss = compute_kld_to_standard_norm(post_cov)

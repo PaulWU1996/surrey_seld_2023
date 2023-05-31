@@ -6,6 +6,144 @@ from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import Dataset
 from typing import Any, Optional, Tuple
 
+import pytorch_lightning as pl
+from torch.utils.data import DataLoader
+
+class UserDataset(Dataset):
+    def __init__(self,
+                 path_to_dataset: str = '/mnt/fast/nobackup/scratch4weeks/pw00391/noiseless_seld_feat_label',
+                 split: Tuple[int, ...] = [[1]], # [1] train [2] eval or test
+                 chunk_length: float = 4.0,
+                 hop_length: float = 0.025) -> None:
+        """
+        Args:
+            path_to_dataset (str): Root directory of the dataset.
+            split (tuple): Splits info for spliting train/val/test dataset.
+            chunk_length (float): The length of the chunk in seconds.
+            hop_length (float): The length of the hop in seconds.
+        """
+        super().__init__()
+
+        self.split = split[0]
+
+        self.chunks = {}
+
+        self.feat_dir = path_to_dataset + '/' + 'foa_dev_norm'
+        self.label_dir = path_to_dataset + '/' + 'foa_dev_adpit_label'
+
+        for file_name in os.listdir(self.feat_dir):
+            if int(file_name[4]) in self.split:
+                feat_file = self.feat_dir + '/' + file_name
+                label_file = self.label_dir + '/' + file_name
+                self._append_chunks(feat_file=feat_file,label_file=label_file,chunk_length=chunk_length,hop_length=hop_length)
+
+    def _append_chunks( self,
+                        feat_file: str,
+                        label_file: str,
+                        chunk_length: float,
+                        hop_length: float):
+        num_chunks = int(60 / chunk_length) # 60s / 4s
+        num_hop_in_chunk = int(chunk_length / hop_length)
+        num_label_in_chunk = int(chunk_length / 0.1)
+
+        for chunk_idx in range(num_chunks):
+            sequence_idx = len(self.chunks)
+
+            feat_start_loc = chunk_idx * num_hop_in_chunk
+            feat_end_loc = feat_start_loc + num_hop_in_chunk
+
+            label_start_loc = chunk_idx * num_label_in_chunk
+            label_end_loc = label_start_loc + num_label_in_chunk
+
+            self.chunks[sequence_idx] = {
+                'feat_file': feat_file,
+                'label_file': label_file,
+                'chunk_loc': chunk_idx,
+                'feat_start_loc': feat_start_loc,
+                'feat_end_loc':  feat_end_loc,
+                'label_start_loc': label_start_loc,
+                'label_end_loc': label_end_loc
+            }
+
+    def __len__(self):
+        return len(self.chunks)
+    
+    def __getitem__(self, index):
+        sequence = self.chunks[index]
+
+        audio = self._get_audio_feat(feat_file=sequence['feat_file'],
+                                     start_loc=sequence['feat_start_loc'],
+                                     end_loc=sequence['feat_end_loc'])
+        label = self._get_label(label_file=sequence['label_file'],
+                                     start_loc=sequence['label_start_loc'],
+                                     end_loc=sequence['label_end_loc'])
+        return audio, label
+
+    def _get_audio_feat(self,
+                        feat_file,
+                        start_loc,
+                        end_loc):
+        # feat = [num_steps, freq_bins, channels]
+        feat = np.load(feat_file)
+        audio_features = feat[start_loc:end_loc,:,:]
+        audio_features = np.transpose(audio_features, (2,0,1))
+        return audio_features
+    
+    def _get_label(self,
+                   label_file,
+                   start_loc,
+                   end_loc):
+        # label_mat: of dimension [nb_frames, 6, 4(=act+XYZ), max_classes]
+        label = np.load(label_file)
+        label = label[start_loc:end_loc,:,:,:]
+        return label
+
+class UserDataModule(pl.LightningDataModule):
+    def __init__(self,
+                 path_to_dataset: str = '/mnt/fast/nobackup/scratch4weeks/pw00391/noiseless_seld_feat_label',
+                 batch_size: int = 8) -> None:
+        super().__init__()
+        self.data_path = path_to_dataset
+        self.batch_size = batch_size
+
+        self.train_split = [[1]]
+        self.val_split = [[2]]
+        self.test_split = [[2]]
+
+    def prepare_data(self) -> None:
+        pass
+
+    def setup(self, stage: str = None) -> None:
+        if stage == "fit" or stage is None:
+            self.train_set = UserDataset(path_to_dataset=self.data_path,
+                                       split=self.train_split)
+            self.val_set = UserDataset(path_to_dataset=self.data_path,
+                                       split=self.val_split)
+            
+        if stage == "test" or stage is None:
+            self.test_set = UserDataset(path_to_dataset=self.data_path,
+                                       split=self.test_split)
+        return super().setup(stage)
+    
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
+        return DataLoader(self.train_set,
+                          batch_size=self.batch_size,
+                          num_workers=12)
+    
+    def val_dataloader(self) -> EVAL_DATALOADERS:
+        return DataLoader(self.val_set,
+                          batch_size=self.batch_size,
+                          num_workers=12)
+    
+    def test_dataloader(self) -> EVAL_DATALOADERS:
+        return DataLoader(self.test_set,
+                          batch_size=self.batch_size,
+                          num_workers=12)
+
+
+
+
+
 class T3Dataset(Dataset):
     def __init__(self,
                  path_to_dataset: str,
@@ -142,8 +280,7 @@ class T3Dataset(Dataset):
         return audio_features, (SED, DOA)
 
 
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader
+
 
 
 class T3DataModule(pl.LightningDataModule):

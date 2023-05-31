@@ -3,6 +3,7 @@
 
 # Ignore the "build" directory
 /lightning_logs/
+/__pycache__/
 
 # Ignore files with sensitive information
 # secrets.txt
