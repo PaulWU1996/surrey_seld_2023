@@ -141,10 +141,6 @@ class UserDataModule(pl.LightningDataModule):
                           num_workers=12)
 
 
-dataset = UserDataset()
-
-
-
 class T3Dataset(Dataset):
     def __init__(self,
                  path_to_dataset: str,
