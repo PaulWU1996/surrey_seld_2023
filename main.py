@@ -20,7 +20,7 @@
 # print(sedl_loss((target_cls,doa,noise),labels))
 
 
-from models import T3Model
+# from models import T3Model
 from data_handler import data_module
 
 import pytorch_lightning as pl
@@ -34,14 +34,15 @@ import torch
 import torch.nn as nn
 
 import numpy as np
-from models import ConvNetwork
+from models import EINPLCST
 
-data = np.load('/mnt/fast/nobackup/users/pw00391/dcase/audio.npy').astype(np.float32)
+data = np.load('/vol/research/VS-Work/PW00391/surrey_seld_2023/audio.npy').astype(np.float32)
 data = data.reshape(1,7,160,256)
 data = torch.from_numpy(data)
 
-ConvNetwork = ConvNetwork().float()
-ConvNetwork(data)
+model = EINPLCST().float()
+output = model(data)
+print(output)
 
 # class ClassificationNet(nn.Module):
 #     def __init__(self):

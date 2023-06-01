@@ -77,7 +77,7 @@ class ConvNetwork(nn.Module):
                       bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(kernel_size=(2, 2)),
+            nn.AvgPool2d(kernel_size=(1, 2)),
         )
         self.sed_conv_block4 = nn.Sequential(
             nn.Conv2d(in_channels=256,
@@ -98,7 +98,7 @@ class ConvNetwork(nn.Module):
                       bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(kernel_size=(2, 2)),
+            nn.AvgPool2d(kernel_size=(1, 2)),
         )
 
         # DOA conv block
@@ -163,7 +163,7 @@ class ConvNetwork(nn.Module):
                       bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(kernel_size=(2, 2)),
+            nn.AvgPool2d(kernel_size=(1, 2)),
         )
         self.doa_conv_block4 = nn.Sequential(
             nn.Conv2d(in_channels=256,
@@ -184,7 +184,7 @@ class ConvNetwork(nn.Module):
                       bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(kernel_size=(2, 2)),
+            nn.AvgPool2d(kernel_size=(1, 2)),
         )
 
         # cross-stitch to share params
@@ -281,7 +281,7 @@ class TransformerEncoder(nn.Module):
             d_model=512, nhead= 8, dim_feedforward=1024,dropout=0.2
         )
         self.encoder = nn.TransformerEncoder(
-            encoder_layer=encoder_layer,num_layers=2
+            encoder_layer=encoder_layer,num_layers=1
         )
 
     def forward(self, x):
@@ -294,11 +294,9 @@ class CrossStitchTransFormer(nn.Module):
         self.sed_transformer = TransformerEncoder()
         self.doa_transformer = TransformerEncoder()
 
-        self.stitch = nn.ParameterList(
-            nn.Parameter(
-                torch.FloatTensor(2,2).uniform_(0.1,0.9)
+        self.stitch = nn.Parameter(
+                torch.FloatTensor(512,2,2).uniform_(0.1,0.9)
             )
-        )
 
     def forward(self, x):
         """
@@ -310,24 +308,212 @@ class CrossStitchTransFormer(nn.Module):
         x_sed = self.sed_transformer(x_sed)
         x_doa = self.doa_transformer(x_doa)
 
+        # cross-stitch
+        x_sed = torch.einsum('c,tnc->tnc',self.stitch[:,0,0],x_sed) + torch.einsum('c,tnc->tnc',self.stitch[:,0,1],x_doa)
 
+        x_doa = torch.einsum('c,tnc->tnc',self.stitch[:,1,0],x_sed) + torch.einsum('c,tnc->tnc',self.stitch[:,1,1],x_doa)
 
-class LinearGaussianSystem(nn.Module):
+        return x_sed, x_doa
+
+class Transformer(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-
-
-class EIN_PLCST(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.convs = ConvNetwork()
-        self.positional_encoder = PositionalEncoding()
-        self.cross_transformer = CrossStitchTransFormer()
+        self.encoder_1 = CrossStitchTransFormer()
+        self.encoder_2 = CrossStitchTransFormer()
+        self.encoder_3 = CrossStitchTransFormer()
 
     def forward(self, x):
-        """
-        x: audio feature
-        """
-        x_sed, x_doa = self.convs(x)
+        x_sed, x_doa = self.encoder_1(x)
+        x_sed, x_doa = self.encoder_2([x_sed,x_doa])
+        x_sed, x_doa = self.encoder_3([x_sed,x_doa])
+
+        return x_sed, x_doa
+
+class SedPrediction(nn.Module):
+    def __init__(self,
+                embedding_dim: int = 512,
+                target_num: int = 3,
+                cls_dim: int = 13) -> None:
+        super().__init__()
+        self.target_num = target_num
+        self.cls_num = cls_dim
+        self.linear = nn.Linear(embedding_dim, embedding_dim*target_num)
+        self.fc = nn.Linear(embedding_dim,cls_dim,bias=True)
+        self.final_act_sed = nn.Sigmoid() # nn.Sequential()
+
+    def forward(self, x):
+        batch, time_step, channel = x.shape
+        x = self.linear(x)
+        x = x.view(batch,time_step,self.target_num,-1)
+        output = torch.Tensor(batch,time_step,self.target_num,self.cls_num)
+        for src_id in range(self.target_num):
+            src = x[:,:,src_id]
+            src = self.fc(src)
+            src = self.final_act_sed(src)
+            output[:,:,src_id] = src
+        return output
+
+class ObservationNoise(nn.Module):
+    def __init__(self,
+                target_num: int = 3,
+                embedding_dim: int = 512,
+                state_dim: int = 3) -> None:
+        super().__init__()
+        self.target_num = target_num
+        self.embedding_dim = embedding_dim
+        self.state_dim = state_dim
+
+        self.linear_1 = nn.Linear(embedding_dim, self.embedding_dim*self.target_num)
+        self.linear_2 = nn.Linear(embedding_dim, state_dim)
+
+    def forward(self,x):
+        x = x.permute(2,0,1)
+
+        time_step, batch, channel = x.shape
+        x = self.linear_1(x).view(time_step,batch,self.target_num,-1)
+        noise = torch.exp(x)
+        noise = noise.permute(1,2,0,3) # (n,num,t,c)
+        noise = self.linear_2(noise)
+        return noise
+
+class LinearGaussianSystem(nn.Module):
+    def __init__(self,
+                state_dim: int = 3,
+                observation_dim: int = 512,
+                prior_mean = None,
+                prior_covariance = None) -> None:
+        super().__init__()
+        self.state_dim = state_dim
+        self.observation_dim = observation_dim
+
+        self.linear = nn.Linear(observation_dim,state_dim)
+
+        # Observation model params
+        self.observation_matrix = nn.Parameter(torch.randn(state_dim,state_dim),requires_grad=True)
+        self.observation_bias = nn.Parameter(torch.randn(state_dim),requires_grad=True)
+
+        # Prior information
+        if prior_mean is None:
+            prior_mean = torch.zeros(state_dim)
+
+        if prior_covariance is None:
+            prior_covariance = torch.eye(state_dim)
+
+        self.prior_mean = nn.Parameter(prior_mean, requires_grad=False)
+        self.prior_covariance = nn.Parameter(prior_covariance,requires_grad=False)
+
+    def forward(self,observation, observation_noise):
+        if observation_noise is None:
+            observation_noise = 1e-6 * torch.eye(self.state_dim)
+
+        innovation_covariance = self.observation_matrix @ self.prior_covariance @ self.observation_matrix.t() + observation_noise
+        posterior_covariance = torch.inverse(torch.inverse(self.prior_covariance) + innovation_covariance)
+
+        residual = self.observation_matrix @ (self.linear(observation) - self.observation_bias).unsqueeze(-1)
+        posterior_mean = posterior_covariance @ (torch.inverse(self.prior_covariance) @ self.prior_mean.unsqueeze(-1) + residual)
+
+        return posterior_mean, posterior_covariance
+
+class DoaPrediction(nn.Module):
+    def __init__(self,
+                target_num: int = 3,
+                embedding_dim: int = 512,
+                state_dim: int = 3,
+                ) -> None:
+        super().__init__()
+        self.target_num = target_num
+        self.embedding_dim = embedding_dim
+        self.state_dim = state_dim
+        # self.observation_noise = observation_noise
+
+        self.linear = nn.Linear(512, self.embedding_dim*self.target_num)
+
+        # self.linear_gaussian_system = LinearGaussianSystem()
+
+        self.prior_mean = torch.clamp(torch.randn(3,3),-0.75,0.75)
+        self.prior_covariance = torch.eye(3).unsqueeze(0).repeat((3,1,1))
+
+    def forward(self,x,noise):
+        batch, time_step, channel = x.shape
+
+        x = self.linear(x).view(batch,time_step,self.target_num,-1) # (N, T, target,C)
         
+        # posterior_mean = []
+        # posterior_covariance = []
+
+        output = torch.Tensor(batch,time_step,self.target_num,self.state_dim)
+
+        for src_idx in range(self.target_num):
+            src = x[:,:,src_idx]
+            obs_noise_cov = torch.diag_embed(noise[:,src_idx])
+
+            LGS = LinearGaussianSystem(prior_mean=self.prior_mean[src_idx,...],
+                                    prior_covariance=self.prior_covariance[src_idx,...])
+            posterior_distribution = LGS(src, obs_noise_cov)
+
+            output[:,:,src_idx] = posterior_distribution[0].squeeze(-1)
+            # posterior_mean.append(posterior_distribution[0])
+            # posterior_covariance.append(posterior_distribution[1].unsqueeze(-1))
+
+        
+        return output # (N,T,num,state_d)
+
+
+
+
+
+# class EIN_PLCST(nn.Module):
+#     def __init__(self,
+#                 target_num: int = 3,) -> None:
+#         super().__init__()
+
+#         self.target_num = target_num
+
+
+#         self.convs = ConvNetwork()
+#         self.observation_noise = ObservationNoise()
+        
+#         self.positional_encoder = PositionalEncoding(pos_len=100, d_model=512, pe_type='t', dropout=0.0)
+#         self.transformer = Transformer()
+#         self.sed_output = SedPrediction()
+#         self.doa_output = DoaPrediction(target_num=self.target_num)
+
+#     def forward(self, x):
+#         """
+#         x: audio feature
+#         """
+#         # Extracting embeddings by convs
+#         x_sed, x_doa = self.convs(x) # (N,C,T)
+
+#         # Extracting observation noise
+#         noise = self.observation_noise(x_doa) # (n,num,t,c)
+
+#         # Encoding positional information
+#         x_sed = self.positional_encoder(x_sed)
+#         x_doa = self.positional_encoder(x_doa) # (N,C,T)
+#         x_sed = x_sed.permute(2,0,1)
+#         x_doa = x_doa.permute(2,0,1) # (T,N,C)
+
+#         # Applying cross-stitch transformer's encoder
+#         x_sed, x_doa = self.transformer([x_sed,x_doa])
+#         x_sed = x_sed.transpose(0,1)
+#         x_doa = x_doa.transpose(0,1)
+
+#         """
+#             SED
+#         """
+#         sed_output =  self.sed_output(x_sed) # (N,T,num,Cls)
+
+
+#         """
+#             DOA
+#         """
+#         #
+#         doa_output = self.doa_output(x_doa,noise)  # (N,T,num,xyz)
+
+#         output = {
+#             'sed': sed_output,
+#             'doa': doa_output
+#         }
+        
+#         return output
