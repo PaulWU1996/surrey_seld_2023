@@ -40,14 +40,13 @@ data = np.load('/vol/research/VS-Work/PW00391/surrey_seld_2023/audio.npy').astyp
 data = data.reshape(1,7,160,256)
 data = torch.from_numpy(data)
 
+model = EINPLCST().float()
+output = model(data)
 
 # label (40,6,4,13) - (nb_frames,6,4(=act+XYZ),max_cls)
+target = np.load('/vol/research/VS-Work/PW00391/surrey_seld_2023/label.npy').astype(np.float32)
 
-
-
-# model = EINPLCST().float()
-# output = model(data)
-# print(output)
+print(1)
 
 # class ClassificationNet(nn.Module):
 #     def __init__(self):
