@@ -339,7 +339,7 @@ class SedPrediction(nn.Module):
         self.cls_num = cls_dim
         self.linear = nn.Linear(embedding_dim, embedding_dim*target_num)
         self.fc = nn.Linear(embedding_dim,cls_dim,bias=True)
-        self.final_act_sed = nn.Sigmoid() # nn.Sequential()
+        self.final_act_sed = nn.Sequential()# nn.Sigmoid() # 
 
     def forward(self, x):
         batch, time_step, channel = x.shape
