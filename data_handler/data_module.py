@@ -141,6 +141,7 @@ class UserDataModule(pl.LightningDataModule):
                           num_workers=12)
 
 
+dataset = UserDataset()
 
 
 
