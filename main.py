@@ -35,16 +35,49 @@ import torch.nn as nn
 
 import numpy as np
 from models import EINPLCST
+from utls import Losses
 
-data = np.load('/vol/research/VS-Work/PW00391/surrey_seld_2023/audio.npy').astype(np.float32)
-data = data.reshape(1,7,160,256)
-data = torch.from_numpy(data)
+import torch.optim as optim
 
-model = EINPLCST().float()
-output = model(data)
+# audio = np.load('/mnt/fast/nobackup/users/pw00391/dcase/audio.npy').astype(np.float32)
+# target = np.load('/mnt/fast/nobackup/users/pw00391/dcase/target.npy').astype(np.float32)
+# # audio = audio.reshape(1,7,160,256)
+# audio = torch.from_numpy(audio)
+# # target = target.shape(1,40,6,4,13)
+# target = torch.from_numpy(target)
 
-# label (40,6,4,13) - (nb_frames,6,4(=act+XYZ),max_cls)
-target = np.load('/vol/research/VS-Work/PW00391/surrey_seld_2023/label.npy').astype(np.float32)
+# model = EINPLCST().float()
+# output = model(audio)
+
+# SED = np.load('/mnt/fast/nobackup/users/pw00391/dcase/SED.npy').astype(np.float32)
+# DOA = np.load('/mnt/fast/nobackup/users/pw00391/dcase/DOA.npy').astype(np.float32)
+
+# audio = torch.from_numpy(audio)
+
+audio = torch.from_numpy(np.load('/mnt/fast/nobackup/users/pw00391/dcase/audio.npy').astype(np.float32))
+target = torch.from_numpy(np.load('/mnt/fast/nobackup/users/pw00391/dcase/target.npy').astype(np.float32))
+
+model = EINPLCST()
+
+output = model(audio)
+
+criterion = Losses()
+
+
+
+optimizer = optim.SGD(model.parameters(), lr=0.1)
+
+
+
+optimizer.zero_grad()  
+# with torch.autograd.set_detect_anomaly(True):
+    # loss_dict = criterion.calculate(pred=output,target=target)
+    # loss_dict['all'].backward() 
+
+loss_dict = criterion.calculate(pred=output,target=target)
+loss_dict['all'].backward()  # 计算梯度
+
+optimizer.step()
 
 print(1)
 

@@ -29,7 +29,7 @@ class UserDataset(Dataset):
         self.chunks = {}
 
         self.feat_dir = path_to_dataset + '/' + 'foa_dev_norm'
-        self.label_dir = path_to_dataset + '/' + 'foa_dev_adpit_label'
+        self.label_dir = path_to_dataset + '/' + 'trackwise'
 
         for file_name in os.listdir(self.feat_dir):
             if int(file_name[4]) in self.split:
@@ -94,8 +94,9 @@ class UserDataset(Dataset):
                    start_loc,
                    end_loc):
         # label_mat: of dimension [nb_frames, 6, 4(=act+XYZ), max_classes]
+        # new label_mat [nb_fraames, 10, 16]
         label = np.load(label_file)
-        label = label[start_loc:end_loc,:,:,:]
+        label = label[start_loc:end_loc,:,:]
         return label
 
 class UserDataModule(pl.LightningDataModule):
@@ -140,6 +141,11 @@ class UserDataModule(pl.LightningDataModule):
                           batch_size=self.batch_size,
                           num_workers=12)
 
+# datamodule = UserDataModule(batch_size=1)
+# datamodule.setup()
+# train_loader = datamodule.train_dataloader()
+
+# samples = next(iter(train_loader))
 
 class T3Dataset(Dataset):
     def __init__(self,

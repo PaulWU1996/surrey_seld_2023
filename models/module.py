@@ -25,7 +25,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=64,
                       out_channels=64,
                       kernel_size=(3,3),
@@ -34,7 +34,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(2, 2)),
         )
         self.sed_conv_block2 = nn.Sequential(
@@ -46,7 +46,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=128,
                       out_channels=128,
                       kernel_size=(3,3),
@@ -55,7 +55,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(2, 2)),
         )
         self.sed_conv_block3 = nn.Sequential(
@@ -67,7 +67,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=256,
                       out_channels=256,
                       kernel_size=(3,3),
@@ -76,7 +76,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(1, 2)),
         )
         self.sed_conv_block4 = nn.Sequential(
@@ -88,7 +88,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=512,
                       out_channels=512,
                       kernel_size=(3,3),
@@ -97,7 +97,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(1, 2)),
         )
 
@@ -111,7 +111,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=64,
                       out_channels=64,
                       kernel_size=(3,3),
@@ -120,7 +120,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(2, 2)),
         )
         self.doa_conv_block2 = nn.Sequential(
@@ -132,7 +132,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=128,
                       out_channels=128,
                       kernel_size=(3,3),
@@ -141,7 +141,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(2, 2)),
         )
         self.doa_conv_block3 = nn.Sequential(
@@ -153,7 +153,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=256,
                       out_channels=256,
                       kernel_size=(3,3),
@@ -162,7 +162,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(1, 2)),
         )
         self.doa_conv_block4 = nn.Sequential(
@@ -174,7 +174,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(in_channels=512,
                       out_channels=512,
                       kernel_size=(3,3),
@@ -183,7 +183,7 @@ class ConvNetwork(nn.Module):
                       dilation=1,
                       bias=False),
             nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.AvgPool2d(kernel_size=(1, 2)),
         )
 
@@ -285,7 +285,8 @@ class TransformerEncoder(nn.Module):
         )
 
     def forward(self, x):
-        return self.encoder(x)
+        output = self.encoder(x)
+        return output
 
 class CrossStitchTransFormer(nn.Module):
     def __init__(self) -> None:
@@ -298,12 +299,12 @@ class CrossStitchTransFormer(nn.Module):
                 torch.FloatTensor(512,2,2).uniform_(0.1,0.9)
             )
 
-    def forward(self, x):
+    def forward(self, x_sed, x_doa):
         """
             x: List of positional embeddings [sed, doa]
         """
-        x_sed = x[0]
-        x_doa = x[1]
+        # x_sed = x[0]
+        # x_doa = x[1]
 
         x_sed = self.sed_transformer(x_sed)
         x_doa = self.doa_transformer(x_doa)
@@ -322,40 +323,45 @@ class Transformer(nn.Module):
         self.encoder_2 = CrossStitchTransFormer()
         self.encoder_3 = CrossStitchTransFormer()
 
-    def forward(self, x):
-        x_sed, x_doa = self.encoder_1(x)
-        x_sed, x_doa = self.encoder_2([x_sed,x_doa])
-        x_sed, x_doa = self.encoder_3([x_sed,x_doa])
+    def forward(self, x_sed, x_doa):
+        x_sed, x_doa = self.encoder_1(x_sed, x_doa)
+        x_sed, x_doa = self.encoder_2(x_sed,x_doa)
+        x_sed, x_doa = self.encoder_3(x_sed,x_doa)
 
         return x_sed, x_doa
 
 class SedPrediction(nn.Module):
     def __init__(self,
                 embedding_dim: int = 512,
-                target_num: int = 3,
+                target_num: int = 5,
                 cls_dim: int = 13) -> None:
         super().__init__()
         self.target_num = target_num
         self.cls_num = cls_dim
         self.linear = nn.Linear(embedding_dim, embedding_dim*target_num)
         self.fc = nn.Linear(embedding_dim,cls_dim,bias=True)
-        self.final_act_sed = nn.Sequential()# nn.Sigmoid() # 
+        self.final_act_sed = nn.Sequential() # nn.Sigmoid() # 
 
     def forward(self, x):
         batch, time_step, channel = x.shape
         x = self.linear(x)
         x = x.view(batch,time_step,self.target_num,-1)
-        output = torch.Tensor(batch,time_step,self.target_num,self.cls_num)
+        # output = torch.Tensor(batch,time_step,self.target_num,self.cls_num) # possible error?
+
+        output = []
         for src_id in range(self.target_num):
             src = x[:,:,src_id]
             src = self.fc(src)
             src = self.final_act_sed(src)
-            output[:,:,src_id] = src
+            # output[:,:,src_id] = src
+            output.append(src)
+
+        output = torch.stack(output).permute(1,2,0,3)
         return output
 
 class ObservationNoise(nn.Module):
     def __init__(self,
-                target_num: int = 3,
+                target_num: int = 10,
                 embedding_dim: int = 512,
                 state_dim: int = 3) -> None:
         super().__init__()
@@ -416,7 +422,7 @@ class LinearGaussianSystem(nn.Module):
 
 class DoaPrediction(nn.Module):
     def __init__(self,
-                target_num: int = 3,
+                target_num: int = 10,
                 embedding_dim: int = 512,
                 state_dim: int = 3,
                 ) -> None:
@@ -430,8 +436,8 @@ class DoaPrediction(nn.Module):
 
         # self.linear_gaussian_system = LinearGaussianSystem()
 
-        self.prior_mean = torch.clamp(torch.randn(3,3),-0.75,0.75)
-        self.prior_covariance = torch.eye(3).unsqueeze(0).repeat((3,1,1))
+        self.prior_mean = torch.clamp(torch.randn(target_num,3),-0.75,0.75)
+        self.prior_covariance = torch.eye(3).unsqueeze(0).repeat((target_num,1,1))
 
     def forward(self,x,noise):
         batch, time_step, channel = x.shape
@@ -441,21 +447,25 @@ class DoaPrediction(nn.Module):
         # posterior_mean = []
         # posterior_covariance = []
 
-        output = torch.Tensor(batch,time_step,self.target_num,self.state_dim)
+        # output = torch.Tensor(batch,time_step,self.target_num,self.state_dim)
+
+        output = []
 
         for src_idx in range(self.target_num):
             src = x[:,:,src_idx]
-            obs_noise_cov = torch.diag_embed(noise[:,src_idx])
+            obs_noise_cov = torch.diag_embed(noise[:,src_idx].detach())
 
             LGS = LinearGaussianSystem(prior_mean=self.prior_mean[src_idx,...],
                                     prior_covariance=self.prior_covariance[src_idx,...])
             posterior_distribution = LGS(src, obs_noise_cov)
 
-            output[:,:,src_idx] = posterior_distribution[0].squeeze(-1)
+            # output[:,:,src_idx] = posterior_distribution[0].squeeze(-1)
+            output.append(posterior_distribution[0].squeeze(-1))
+
             # posterior_mean.append(posterior_distribution[0])
             # posterior_covariance.append(posterior_distribution[1].unsqueeze(-1))
 
-        
+        output = torch.stack(output).permute(1,2,0,3)
         return output # (N,T,num,state_d)
 
 
