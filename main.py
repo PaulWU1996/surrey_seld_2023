@@ -35,9 +35,42 @@ import torch.nn as nn
 
 import numpy as np
 from models import EINPLCST
-from utls import Losses
+from utls import Losses #, Metrics
 
 import torch.optim as optim
+
+from pytorch_lightning.loggers import WandbLogger
+
+# if __name__ == "__main__":
+#     torch.autograd.set_detect_anomaly(True)
+#     torch.set_float32_matmul_precision("medium")
+#     wandb_logger = WandbLogger(project='EINPLCST_without_Matric', entity='')
+
+#     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+#     model = EINPLCST(target_num=6).to(device)
+
+
+#     data = data_module.UserDataModule(batch_size=64)
+#     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
+
+#     trainer = pl.Trainer(
+#         default_root_dir='/mnt/fast/nobackup/users/pw00391/dcase',
+#         min_epochs=0,
+#         max_epochs=90,
+#         accelerator="auto",
+#         enable_checkpointing=True,
+#         logger=wandb_logger,
+#         # fast_dev_run=True
+#     )
+
+#     # trainer.tune(model=model,datamodule=data)
+#     trainer.fit(model=model,datamodule=data)
+
+
+
+
+
 
 # audio = np.load('/mnt/fast/nobackup/users/pw00391/dcase/audio.npy').astype(np.float32)
 # target = np.load('/mnt/fast/nobackup/users/pw00391/dcase/target.npy').astype(np.float32)
@@ -61,25 +94,35 @@ model = EINPLCST()
 
 output = model(audio)
 
-criterion = Losses()
-
-
-
+criterion = Losses(mode='train')
+val_loss = Losses(mode='val')
 optimizer = optim.SGD(model.parameters(), lr=0.1)
 
+with torch.autograd.set_detect_anomaly(True):
+    optimizer.zero_grad()  
+    loss_dict = criterion.calculate(pred=output,target=target)
+    loss_dict['all'].backward()
+
+    # val_loss_dct = val_loss.eval_calculate(pred=output,target=target)
+
+    # print(1)
+
+# try:
+#     loss_dict['all'].backward()
+# except Exception as e:
+#     print(e)
 
 
-optimizer.zero_grad()  
-# with torch.autograd.set_detect_anomaly(True):
-    # loss_dict = criterion.calculate(pred=output,target=target)
-    # loss_dict['all'].backward() 
+# loss_dict = criterion.eval_calculate(pred=output,target=target)
+# # loss_dict['all'].backward()  # 计算梯度
 
-loss_dict = criterion.calculate(pred=output,target=target)
-loss_dict['all'].backward()  # 计算梯度
+# metric = Metrics()
 
-optimizer.step()
+# metric.calculate(loss_dict['updated_target'],target)
 
-print(1)
+# # optimizer.step()
+
+# print(1)
 
 # class ClassificationNet(nn.Module):
 #     def __init__(self):

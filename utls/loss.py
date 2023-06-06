@@ -18,6 +18,7 @@ class BCEWithLogitsLoss:
         batch, time_step, n_track, dim = pred.shape
         _, _, n_gt, _ = target.shape
         COST = []
+        
         for i in range(n_track):
             cost = []
             for j in range(n_gt):
@@ -67,8 +68,8 @@ class Losses:
         t_doa = target[...,13:]
 
        
-        sed_loss = self.losses[0](p_sed,t_sed).mean()
-        doa_loss = self.losses[1](p_doa,t_doa).mean()
+        sed_loss = self.losses[0](p_sed,t_sed)#.mean()
+        doa_loss = self.losses[1](p_doa,t_doa)#.mean()
 
         all_loss = sed_loss * 0.4 + doa_loss * 0.6
 
@@ -83,7 +84,7 @@ class Losses:
     def eval_calculate(self, pred, target):
         """
         pred: (dict) {'sed','doa'} {(N,t,n,13), (N,t,n,3)}
-        target: (tensor) (N,T,n,16) -> n = 10, 16 = (13 + 3)
+        target: (tensor) (N,T,n,16) -> n = num_target, 16 = (13 + 3)
         """
         # 
         p_sed = pred['sed']
@@ -95,8 +96,9 @@ class Losses:
 
         # obtain the cost matrix from sed and doa
         # we will leave the computation graph
-        sed_cost = self.losses[0].calculate(pred=p_sed,target=t_sed).detach().numpy().reshape(N,t,n,n)
-        doa_cost = self.losses[1].calculate(pred=p_doa,target=t_doa).detach().numpy().reshape(N,t,n,n)
+
+        sed_cost = self.losses[0].calculate(pred=p_sed,target=t_sed).cpu().detach().numpy().reshape(N,t,n,n)
+        doa_cost = self.losses[1].calculate(pred=p_doa,target=t_doa).cpu().detach().numpy().reshape(N,t,n,n)
 
         sum_cost = (sed_cost + doa_cost).reshape(N,t,n,n)
         SED_loss = []
@@ -112,8 +114,8 @@ class Losses:
                 frame_cost = sum_cost[i,j]
                 row_ind, col_ind = linear_sum_assignment(frame_cost)
 
-                sed_t = sed_cost[i,j][row_ind, col_ind].sum()
-                doa_t = doa_cost[i,j][row_ind, col_ind].sum()
+                sed_t = sed_cost[i,j][row_ind, col_ind].mean()
+                doa_t = doa_cost[i,j][row_ind, col_ind].mean()
 
                 sed_loss.append(sed_t)
                 doa_loss.append(doa_t)
@@ -125,10 +127,12 @@ class Losses:
             SED_loss.append(np.array(sed_loss))
             DOA_loss.append(np.array(doa_loss))   
 
-        SED_loss = torch.from_numpy(np.stack(SED_loss))
-        DOA_loss = torch.from_numpy(np.stack(DOA_loss))
+        SED_loss = torch.from_numpy(np.stack(SED_loss)).mean()
+        DOA_loss = torch.from_numpy(np.stack(DOA_loss)).mean()
 
         ALL_loss = 0.5 * (SED_loss + DOA_loss)
+
+        ALL_loss = ALL_loss.mean()
 
         loss_dict = {
             'all': ALL_loss,
